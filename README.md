@@ -7,5 +7,10 @@ For Ubuntu:
 ```
 copy include folder from project
 paste /usr/local/include/PCSC
-run main.c in the project
+
+run command below:
+mkdir build
+cd build
+cmake ..
+make && ./program
 ```

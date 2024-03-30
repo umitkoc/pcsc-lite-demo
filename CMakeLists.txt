@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.27)
-project(model_contact)
+project(program)
 
 set(CMAKE_CXX_STANDARD 17)
 
 add_executable(${PROJECT_NAME}
-        main.c
+        main.cpp
         winscard.c
         sys_unix.c
         debuglog.c
