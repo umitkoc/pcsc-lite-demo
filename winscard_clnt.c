@@ -98,24 +98,19 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *    negotiated its protocol.
  */
 
-#include <PCSC/config.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <sys/un.h>
 #include <errno.h>
 #include <stddef.h>
 #include <sys/time.h>
 #include <pthread.h>
-#include <sys/wait.h>
 
 #include <PCSC/misc.h>
 #include <PCSC/pcscd.h>
 #include <PCSC/winscard.h>
 #include <PCSC/debuglog.h>
-#include <PCSC/strlcpycat.h>
 
 #include <PCSC/readerfactory.h>
 #include <PCSC/eventhandler.h>
@@ -139,7 +134,6 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define FALSE 0
 #endif
 
-static char sharing_shall_block = TRUE;
 
 #define COLOR_RED "\33[01;31m"
 #define COLOR_GREEN "\33[32m"
@@ -443,13 +437,13 @@ static LONG SCardEstablishContextTH(DWORD, LPCVOID, LPCVOID,
  */
 LONG SCardEstablishContext(DWORD dwScope, LPCVOID pvReserved1,LPCVOID pvReserved2, LPSCARDCONTEXT phContext)
 {
-	LONG rv;
+
 
 	API_TRACE_IN("%ld, %p, %p", dwScope, pvReserved1, pvReserved2)
 	PROFILE_START
 
 	/* Check if the server is running */
-	rv = SCardCheckDaemonAvailability();
+    LONG rv= SCardCheckDaemonAvailability();
 	if (SCARD_E_INVALID_HANDLE == rv)
 		/* we reconnected to a daemon or we got called from a forked child */
 		rv = SCardCheckDaemonAvailability();
@@ -495,11 +489,13 @@ end:
  * @retval SCARD_F_COMM_ERROR An internal communications error has been detected (\ref SCARD_F_COMM_ERROR)
  * @retval SCARD_F_INTERNAL_ERROR An internal consistency check failed (\ref SCARD_F_INTERNAL_ERROR)
  */
+static char sharing_shall_block = TRUE;
+
 static LONG SCardEstablishContextTH(DWORD dwScope,
 	/*@unused@*/ LPCVOID pvReserved1,
 	/*@unused@*/ LPCVOID pvReserved2, LPSCARDCONTEXT phContext)
 {
-	LONG rv;
+
 	struct establish_struct scEstablishStruct;
 	uint32_t dwClientID = 0;
 
@@ -549,7 +545,7 @@ static LONG SCardEstablishContextTH(DWORD dwScope,
 		isExecuted = 1;
 	}
 
-
+    LONG rv=0;
 	/* Establishes a connection to the server */
 	if (ClientSetupSession(&dwClientID) != 0)
 	{
@@ -563,7 +559,7 @@ static LONG SCardEstablishContextTH(DWORD dwScope,
 		veStr.minor = PROTOCOL_VERSION_MINOR;
 		veStr.rv = SCARD_S_SUCCESS;
 
-		rv = MessageSendWithHeader(CMD_VERSION, dwClientID, sizeof(veStr),
+         rv = MessageSendWithHeader(CMD_VERSION, dwClientID, sizeof(veStr),
 			&veStr);
 		if (rv != SCARD_S_SUCCESS)
 			return rv;
@@ -1730,8 +1726,7 @@ again:
  * printf("reader state: 0x%04X\n", rgReaderStates[1].dwEventState);
  * @endcode
  */
-LONG SCardGetStatusChange(SCARDCONTEXT hContext, DWORD dwTimeout,
-	SCARD_READERSTATE *rgReaderStates, DWORD cReaders)
+LONG SCardGetStatusChange(SCARDCONTEXT hContext, DWORD dwTimeout,SCARD_READERSTATE *rgReaderStates, DWORD cReaders)
 {
 	SCARD_READERSTATE *currReader;
 	READER_STATE *rContext;
@@ -2930,7 +2925,7 @@ LONG SCardListReaders(SCARDCONTEXT hContext, /*@unused@*/ LPCSTR mszGroups,
 	SCONTEXTMAP * currentContextMap;
 	LONG rv = SCARD_S_SUCCESS;
 	char *buf = NULL;
-
+    //RFAllocateReaderSpace(PCSC_MAX_READER_HANDLES);
 	(void)mszGroups;
 	PROFILE_START
 	API_TRACE_IN("%ld", hContext)

@@ -81,7 +81,7 @@ static int ConfigFileCRC = 0;
 static pthread_mutex_t LockMutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define IDENTITY_SHIFT 16
-static LONG removeReader(READER_CONTEXT * sReader);
+static LONG removeReader(READER_CONTEXT * sContext);
 
 static int RDR_CLIHANDLES_seeker(const void *el, const void *key)
 {
@@ -757,12 +757,13 @@ LONG RFReaderInfo(const char *readerName, READER_CONTEXT ** sReader)
 	if (readerName == NULL)
 		return SCARD_E_UNKNOWN_READER;
 
+
+
 	for (i = 0; i < PCSCLITE_MAX_READERS_CONTEXTS; i++)
 	{
 		if (sReadersContexts[i]->vHandle != 0)
 		{
-			if (strcmp(readerName,
-				sReadersContexts[i]->readerState->readerName) == 0)
+			if (strcmp(readerName,sReadersContexts[i]->readerState->readerName) == 0)
 			{
 				/* Increase reference count */
 				REF_READER(sReadersContexts[i])

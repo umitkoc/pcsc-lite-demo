@@ -254,12 +254,12 @@ LONG SCardConnect(/*@unused@*/ SCARDCONTEXT hContext, LPCSTR szReader,
 			dwShareMode != SCARD_SHARE_DIRECT)
 		return SCARD_E_INVALID_VALUE;
 
-//	Log3(PCSC_LOG_DEBUG, "Attempting Connect to %s using protocol: %ld",szReader, dwPreferredProtocols);
+	Log3(PCSC_LOG_DEBUG, "Attempting Connect to %s using protocol: %ld",szReader, dwPreferredProtocols);
 
 	rv = RFReaderInfo((LPSTR) szReader, &rContext);
 	if (rv != SCARD_S_SUCCESS)
 	{
-//		Log2(PCSC_LOG_ERROR, "Reader %s Not Found", szReader);
+		Log2(PCSC_LOG_ERROR, "Reader %s Not Found", szReader);
 		return rv;
 	}
 
@@ -281,7 +281,7 @@ LONG SCardConnect(/*@unused@*/ SCARDCONTEXT hContext, LPCSTR szReader,
 	 */
 	if (rContext->contexts == PCSCLITE_SHARING_EXCLUSIVE_CONTEXT)
 	{
-//		Log1(PCSC_LOG_ERROR, "Error Reader Exclusive");
+		Log1(PCSC_LOG_ERROR, "Error Reader Exclusive");
 		rv = SCARD_E_SHARING_VIOLATION;
 		goto exit;
 	}
@@ -291,7 +291,7 @@ LONG SCardConnect(/*@unused@*/ SCARDCONTEXT hContext, LPCSTR szReader,
 	 */
 	if (rContext->hLockId != 0)
 	{
-//		Log1(PCSC_LOG_INFO, "Waiting for release of lock");
+	Log1(PCSC_LOG_INFO, "Waiting for release of lock");
 		while (rContext->hLockId != 0)
 			(void)SYS_USleep(PCSCLITE_LOCK_POLL_RATE);
 	//	Log1(PCSC_LOG_INFO, "Lock released");
@@ -309,7 +309,7 @@ LONG SCardConnect(/*@unused@*/ SCARDCONTEXT hContext, LPCSTR szReader,
 	{
 		if (!(readerState & SCARD_PRESENT))
 		{
-//			Log1(PCSC_LOG_DEBUG, "Card Not Inserted");
+		Log1(PCSC_LOG_DEBUG, "Card Not Inserted");
 			rv = SCARD_E_NO_SMARTCARD;
 			goto exit;
 		}
@@ -325,22 +325,22 @@ LONG SCardConnect(/*@unused@*/ SCARDCONTEXT hContext, LPCSTR szReader,
 				rContext->readerState->cardAtr, &dwAtrLen);
 			rContext->readerState->cardAtrLength = dwAtrLen;
 
-			if (rv == IFD_SUCCESS)
-			{
-				readerState = SCARD_PRESENT | SCARD_POWERED | SCARD_NEGOTIABLE;
+            if (rv == IFD_SUCCESS) {
+                readerState = SCARD_PRESENT | SCARD_POWERED | SCARD_NEGOTIABLE;
 
-//				Log1(PCSC_LOG_DEBUG, "power up complete.");
-//				LogXxd(PCSC_LOG_DEBUG, "Card ATR: ",
-//					rContext->readerState->cardAtr,
-//					rContext->readerState->cardAtrLength);
-			}
-		//	else
-//				Log3(PCSC_LOG_ERROR, "Error powering up card: %ld 0x%04lX",rv, rv);
-		}
+                Log1(PCSC_LOG_DEBUG, "power up complete.");
+                LogXxd(PCSC_LOG_DEBUG, "Card ATR: ",
+                       rContext->readerState->cardAtr,
+                       rContext->readerState->cardAtrLength);
+            } else
+                Log3(PCSC_LOG_ERROR, "Error powering up card: %ld 0x%04lX", rv, rv);
+
+
+        }
 
 		if (! (readerState & SCARD_POWERED))
 		{
-//			Log1(PCSC_LOG_ERROR, "Card Not Powered");
+			Log1(PCSC_LOG_ERROR, "Card Not Powered");
 			(void)pthread_mutex_unlock(&rContext->powerState_lock);
 			rv = SCARD_W_UNPOWERED_CARD;
 			goto exit;
@@ -348,7 +348,7 @@ LONG SCardConnect(/*@unused@*/ SCARDCONTEXT hContext, LPCSTR szReader,
 
 		/* the card is now in use */
 		rContext->powerState = POWER_STATE_INUSE;
-//		Log1(PCSC_LOG_DEBUG, "powerState: POWER_STATE_INUSE");
+		Log1(PCSC_LOG_DEBUG, "powerState: POWER_STATE_INUSE");
 		(void)pthread_mutex_unlock(&rContext->powerState_lock);
 	}
 
@@ -426,27 +426,27 @@ LONG SCardConnect(/*@unused@*/ SCARDCONTEXT hContext, LPCSTR szReader,
 		{
 			case SCARD_PROTOCOL_T0:
 			case SCARD_PROTOCOL_T1:
-//				Log2(PCSC_LOG_DEBUG, "Active Protocol: T=%d",
-				//	(*pdwActiveProtocol == SCARD_PROTOCOL_T0) ? 0 : 1);
+				Log2(PCSC_LOG_DEBUG, "Active Protocol: T=%d",
+					(*pdwActiveProtocol == SCARD_PROTOCOL_T0) ? 0 : 1);
 				break;
 
 			case SCARD_PROTOCOL_RAW:
-//				Log1(PCSC_LOG_DEBUG, "Active Protocol: RAW");
+			Log1(PCSC_LOG_DEBUG, "Active Protocol: RAW");
 				break;
 
 			default:
-//				Log2(PCSC_LOG_ERROR, "Active Protocol: unknown %ld",*pdwActiveProtocol);
+			Log2(PCSC_LOG_ERROR, "Active Protocol: unknown %ld",*pdwActiveProtocol);
 		}
 	}
 	else
-//		Log1(PCSC_LOG_DEBUG, "Direct access: no protocol selected");
+	Log1(PCSC_LOG_DEBUG, "Direct access: no protocol selected");
 
 	/*
 	 * Prepare the SCARDHANDLE identity
 	 */
 	*phCard = RFCreateReaderHandle(rContext);
 
-//	Log2(PCSC_LOG_DEBUG, "hCard Identity: %lx", *phCard);
+	Log2(PCSC_LOG_DEBUG, "hCard Identity: %lx", *phCard);
 
 	/*******************************************
 	 *
@@ -1372,8 +1372,7 @@ exit:
 	return rv;
 }
 
-LONG SCardGetAttrib(SCARDHANDLE hCard, DWORD dwAttrId,
-	LPBYTE pbAttr, LPDWORD pcbAttrLen)
+LONG SCardGetAttrib(SCARDHANDLE hCard, DWORD dwAttrId,LPBYTE pbAttr, LPDWORD pcbAttrLen)
 {
 	LONG rv;
 	READER_CONTEXT * rContext = NULL;
