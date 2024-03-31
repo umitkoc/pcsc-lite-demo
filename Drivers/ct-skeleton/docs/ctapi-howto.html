@@ -1,0 +1,215 @@
+<HTML>
+<TITLE>Linux CT-API Smartcard HOW-TO</TITLE>
+
+<BODY BGCOLOR="Silver">
+
+<H1 ALIGN=CENTER>Linux CT-API HOW-TO</H1>
+<BR>
+<P>
+This document describes how to write a compliant CT-API smartcard reader
+driver under Linux.  These drivers work with the PC/SC Linux Smart Manager
+Resource Manager.
+</P>
+<BR>
+<B> REQUIREMENTS </B>
+<UL><P>
+To begin writing your Linux CT-API you must be sure to have a working
+communications port interface.  Currently MUSCLE supports serial
+interfaces and serial code to use with your serial reader is provided.
+Parallel readers and PCMCIA readers are not yet supported as of this
+release but could easily be implemented to fit in the infrastructure.    
+</P><P>
+For readers to work with the CT-API and resource manager, they must
+support several functions.  Although most readers support these functions
+it is necessary that they work properly.  First, all readers must support
+a power up and power down.  Second, a reader must be able to Reset all
+ISO-7816-4 compliant cards and return a unique ATR supplied by the card.
+Third, the reader must support card in and card out events.  This means I
+should be able to test at any time the card status in the reader, whether
+this be in, out, on, or off.
+</P>
+</UL>
+
+<BR>
+
+<B>GETTING STARTED</B>
+
+<P>
+To begin writing your ct-api driver you must obtain the specifications
+sheet provided by the reader manufacturer.  Determine the type of reader
+that you have.  Many readers are type pass-thru in that they react much
+like a modem does on the serial port.  Pass-thru or "Dumb Readers" rarely
+care what you send to them because they will generally pass it on through
+to the card hence the name.  These readers are a bit more tricky to
+support.  Many communicate events such as card in/out by setting a line
+high on the port such as CTS.  They also work entirely on timing that is
+set by the software.  To reset the card you may have to set a line such as
+RTS high for a certain amount of time and then bring it low again.  These
+type of readers generally don't support many commands but are very
+dependant on software timings which can be difficult between platforms.
+The other type of reader, "Smart Readers", receive the commands sent to
+them and format them to send to the smartcard.  They also have
+specified commands for doing resets and checking card status.  These are
+generally easy to use because they just consist of sending bytes out the
+serial port.  Some readers support both modes and the user can choose by
+issuing a command to the reader.
+</P><P>
+CT-API is a card terminal API written by a few German and Deutch companies
+to fullfill the requirements of some German healthcard issues.  The
+importance of CT-API is that it strictly follows the "Keep it Simple"
+guidlines.  Basically it allows the user to have three functions:
+<BR>
+<UL>CT_init( ....... ); <BR>
+    CT_data( ....... ); <BR>
+    CT_close( ...... );
+</UL>
+<BR><BR>
+First, <b>CT_init()</b> is responsible to open a channel to begin communictation to
+the card terminal ( smartcard reader ).  Basically all it needs to do is
+interpret the second parameter given to it which is the port number and
+call the correct function to open that port.  Currently on the serial
+version if the application passes the port number as <b>PORT_COM2</b>, the
+<b>CT_init()</b> will call the <b>IO_InitializePort(9600,8,'E',"/dev/ttyS1");</b>
+It will then return whether the function was successful.
+</P><P>
+Second, <B>CT_data()</B> is responsible for opening a direct
+communications channel with the reader or the card.  What makes the API so
+useful, is that it is still quite low-level yet it gives me direct access
+to the card and the reader without worrying about checksums or any
+communications port issues.  It allows me to choose whether to talk to the
+card or the reader by using what it calls SAD and DAD.  These are
+respectively, source address and destination address.  By specifying the
+destination you can choose whether you want the outgoing command to go to
+the card (0) or the reader (1).  When you send the command you must
+specify the length of the command and also the length of the return you
+are expecting.  In my implementation, the reader passes back the size of
+the return.  In this scenario the return buffer must be set to the MAX
+size of return commands (~264 bytes on many readers).  This function
+handles sending commands to the serial port and also receiving any data.
+This function then returns whether it was successful.
+</P><P>
+Third, <b>CT_close()</b> closes the communications channel to the port on
+which the reader resides.  It takes only 1 parameter, ctn, which is card
+terminal number which will be explained more below.  This function then
+return whether it was successfull.
+</P><P>
+On some card terminals, especially those which are pass-thru, it may be
+impossible to send a command to the CT-API to control reader events such
+as Reset, and Get Status.  For this, and also to make our lives easier the
+<B>CT-BCS</B> standard was created.  CT-BCS, or Card Terminal - Basic
+Command Set allows me to send a constant command to all reader's CT-API's
+and make them perform the same operation.  Basically what is needed is an
+interpreter within the <b>CT_data()</b> function.  For example on the
+Schlumberger (r) Reflex 62 reader I have to send byte 0x64 to the reader
+in order to perform a reset on the card.  For the Litronic (r) Argus 210,
+a pass-thru reader, I have to set the RTS for 50ms and drop it back low
+for another 50 ms.  How can I issue a byte represented command to do that
+?  Wouldn't it be nice if I could issue the same command to both readers
+and not have to worry about what really happens ?  CT-BCS takes care of
+this.  For more information on CT-BCS please refer to the Docs/Specs page
+on the MUSCLE website.  In CT-BCS it takes care of a few reader functions
+such as:</P>
+
+<UL><b>Request ICC</b> - Applies power to the reader and card.<BR>
+    <b>Eject ICC</b> - Removes power from the reader and card and ejects the card
+    if supported.<BR>
+    <b>Get Status</b> - Gets the current status. Card in/out. Card power status.<BR>
+    <b>Reset CT</b> - Resets the card and or terminal.<BR>
+</UL>
+
+<P>
+There are also some other functions listed in the specification to take
+care of card terminals with displays for showing text to the user and also
+terminals which support some type of PIN authentication.  These don't have
+to be currently implemented.  The functions above MUST be implemented
+correctly in order to work with the smartcard infrastructure.  Please
+refer to the CT-BCS documentation for more information.
+</P><P>
+When interpreting the incoming command in the CT_data() function you may
+want to do something like this:
+
+<BR><BR>
+<b>if ( cmd[0] == 0x20 && cmd[1] = 0x11 ) {</b>
+<BR><BR>
+
+I currently only look at the first two bytes, class and instruction.  The
+remaining three bytes allow for some minor user preferences to be added.
+To make things easy you MUST:<BR><BR>
+
+Assume on Reset CT (0x20,0x11) that if your reader supports both card and
+reader reset, you will want to first reset the reader and then the card.
+Otherwise, more importantly make sure this resets the card and ALWAYS
+returns the full ATR no matter what.  You will also notice that
+ICC-Interface (same as ctn), allows you to specify which reader you want
+to send the command.  This is only done if your smartcard reader has more
+than 1 reader built in.  Otherwise IGNORE this and always perform the
+operations on the only reader.
+
+<BR><BR>
+
+Assume on Request ICC (0x20,0x12) that the power on the reader is off.
+Power up the reader and card.  It is not necessary to perform a reset on
+the card and don't worry about sending any data back such as ATR or Type.
+Just verify the reader was turned on and return.
+
+<BR><BR>
+
+Assume on Get Status (0x20,0x13) that the upper level application is only
+interested in card power status and card in/out status.  This function
+returns 1 byte determining on the current status. 0 - represents there is
+no card inserted.  3 - represents a card inserted but not powered.  5 -
+represents a card that is neither inserted or powered (induced).  See
+documentation for more information.  It is NOT necessary to provide CT
+manufacturer data object for this is read from the configuration file.
+
+<BR><BR>
+
+Assume on Eject ICC (0x20,0x15) that the reader is currently on.  All you
+have to do is turn the reader off.
+</P>
+<BR><BR>
+<P>
+Now that you have a good understanding of what the requirements are you
+are ready to begin supporting your reader.  By clicking on the link below
+you will be given a a skeleton CT-API.  This will include the
+following:<BR>
+<UL>Makefile - This will compile to a shared object.<BR>
+    ctapi.h - The header file for your CT-API driver.<BR>
+    ctapi.c - This will have all the functions defined.  The largest part
+    of this is doing the <b>CT_data()</b> function.<BR>
+    serial.h - The header file for my serial port library.<BR>
+    serial.c - Functions defined for the serial port library.<BR>
+    defines.h - Global defines.
+</UL>
+<BR>
+You should really only have to fill in code in the ctapi.c.  Everything
+else is implemented for you.  If you have a pass-thru reader you may have
+to make some changes to the serial code.  This is also true if you are
+writing a PCMCIA or Parallel reader.  If you will be implementing more
+functions like checksum functions, place their prototype in the ctapi.c
+along with the function.  I would like the header to only show the three
+CT-API functions.
+<BR><BR>
+<CENTER><H3>
+<A HREF="/smartcard/files/ctskeleton.tar.gz">
+Download the CT-API Programmer's Skeleton</A>
+</H3></CENTER>
+<BR><BR>
+</P><P>
+That should be it.  Please direct all other questions to the mailing list
+if you are having any troubles.  Once implemented please send a copy of
+the code to <A HREF="mailto:corcordt@cs.purdue.edu">corcordt@cs.purdue.edu
+</A> to be tested and added to the distribution. Good Luck !!!!!!!!
+</P><P>
+For more information on CT-API and CT-BCS please refer to the MUSCLE site
+at <A HREF="http://www.linuxnet.com/smartcard/">
+http://www.linuxnet.com/smartcard/</A>
+Go to the Docs/Specs section.
+<BR><BR><BR><BR>
+<CENTER><FONT SIZE=-1>
+Schlumberger Reflex 62 is a trademark of Schlumberger (r)<BR>
+Litronics Argus 210 is a trademark of Litronics (r).
+</CENTER>
+
+</BODY>
+</HTML>

@@ -1,0 +1,8 @@
+Author : David Corcoran
+License: LICENSE
+
+This is the skeleton for making CT-API compliant reader drivers under
+Unix/Linux.  Please refer to the document under docs for more information.
+
+
+For licensing information please see file LICENSE.

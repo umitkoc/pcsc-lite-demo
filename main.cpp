@@ -10,14 +10,14 @@ auto main()->int {
     // Establish context with the PC/SC resource manager
     rv = SCardEstablishContext(SCARD_SCOPE_SYSTEM, nullptr, nullptr, &hContext);
     if (rv != SCARD_S_SUCCESS) {
-        std::cout<<"SCardEstablishContext failed: "<<std::hex<<rv;
+        std::cout<<"SCardEstablishContext failed: "<<std::hex<<rv<< std::endl;
         return 1;
     }
 
     // List available readers
     rv = SCardListReaders(hContext, nullptr, (LPSTR)&mszReaders, &dwReaders);
     if (rv != SCARD_S_SUCCESS) {
-        std::cout<<"SCardListReaders failed: "<< std::hex<<rv;
+        std::cout<<"SCardListReaders failed: "<< std::hex<<rv <<std::endl;
         SCardReleaseContext(hContext);
         return 1;
     }
