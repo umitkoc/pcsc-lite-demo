@@ -24,7 +24,16 @@ used command after for device control
 open terminal : pscs_scan
 
 ```
+```
+Solved to Problem
 
+- If this token and others are legitimate, please use m4_pattern_allow. See the Autoconf documentation.
+
++ sudo apt-get -y install autoconf automake libtool cmake autoconf-archive build-essential
+
+
+
+```
 
 
 
